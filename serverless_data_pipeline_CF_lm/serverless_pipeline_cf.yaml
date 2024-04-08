@@ -1,6 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'DBT pipeline for lambda function'
-
 Parameters:
   BucketNameapi:
     Description: Name for the bucket to store the files  
@@ -65,9 +64,9 @@ Parameters:
   
 Resources:
   lambdaapirole:
-    RoleName: lambdaapirole
     Type: 'AWS::IAM::Role'
     Properties:
+      RoleName: lambdaapirole
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -103,9 +102,9 @@ Resources:
                 Action: 'lambda:InvokeFunction'
                 Resource: '*'
   ecsrole:
-    RoleName: ecsrole
     Type: 'AWS::IAM::Role'
     Properties:
+      RoleName: ecsrole
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -132,9 +131,9 @@ Resources:
                   - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/ecs/MyTaskDefinition:log-stream:*'
                   - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${repositoryname}:*'
   ecslambdarole:
-    RoleName: ecslambdarole
     Type: 'AWS::IAM::Role'
     Properties:
+      RoleName: ecslambdarole
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -161,9 +160,9 @@ Resources:
                 Action: 'ec2:DescribeVpcs'
                 Resource: '*'
   snowflakeapigatewayrole:
-    RoleName: snowflakeapigatewayrole 
     Type: 'AWS::IAM::Role'
     Properties:
+      RoleName: snowflakeapigatewayrole
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -280,6 +279,45 @@ Resources:
                   # Print the number of rows in the file
                   num_rows = len(all_data)
                   print(f"Data from {dataset_name} dataset written to S3 as {s3_key}. Number of rows: {num_rows}")
+              result = delete_old_files('sandbox-learning-01', ['lm/cargo/', 'lm/passenger/', 'lm/landing/'], 12)
+              return result
+          def delete_old_files(bucket_name, prefixes, days_threshold):
+            # Create an S3 client
+            s3 = boto3.client('s3')
+
+            # Get current time in 'Asia/Kolkata' timezone
+            current_time = datetime.datetime.now(pytz.timezone('Asia/Kolkata'))
+
+            deleted_files = []
+
+            for prefix in prefixes:
+                # List objects in the bucket with the specified prefix
+                response = s3.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
+
+                # Check if there are objects in the bucket
+                if 'Contents' in response:
+                    for obj in response['Contents']:
+                        # Check if the object is a file (i.e., it does not end with '/')
+                        if not obj['Key'].endswith('/'):
+                            # Parse the timestamp from the file name
+                            file_name_parts = obj['Key'].split('_')
+                            if len(file_name_parts) > 1:
+                                file_timestamp_str = '_'.join(file_name_parts[1:]).split('.')[0]
+                                try:
+                                    # Parse the timestamp as 'Asia/Kolkata' timezone
+                                    file_timestamp = datetime.datetime.strptime(file_timestamp_str, '%Y-%m-%d_%H-%M-%S').replace(tzinfo=pytz.timezone('Asia/Kolkata'))
+                                except ValueError:
+                                    continue
+                
+                                # Check if the file is older than the threshold
+                                if (current_time - file_timestamp).days > days_threshold:
+                                    # Delete the file
+                                    s3.delete_object(Bucket=bucket_name, Key=obj['Key'])
+                                    deleted_files.append(obj['Key'])
+                                    print(f"File {obj['Key']} was deleted.")
+
+            return deleted_files if deleted_files else "No files are deleted."
+      
 
       Runtime: !Ref runtimename
       Timeout: !Ref Timeout
@@ -497,4 +535,3 @@ Resources:
       Description: 'Production stage'
       RestApiId: !Ref TestApi
       DeploymentId: !Ref Deployment
-

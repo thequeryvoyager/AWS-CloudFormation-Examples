@@ -22,19 +22,59 @@ jobs:
         aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Deploy CloudFormation Stack
-      uses: aws-actions/aws-cloudformation-github-deploy@v1
-      with:
-        name: cloud-formation-pipeline
-        template: cloudformation/cloud_formation_pipeline.yaml
-        capabilities: CAPABILITY_NAMED_IAM
-        parameter-overrides: >-
-          snowflakeexternalid='value1',
-          requestslayername='value2',
-          clustername='value3',
-          snowflakeiamarn='value4',
-          pytzlayername='value5',
-          repositoryname='value6',
-          BucketNameapi='value7',
-          restapiname='value8',
-          layerbucketname='value9'
+    - name: Check Stack
+      id: check_stack
+      run: |
+        if aws cloudformation describe-stacks --stack-name cloud-formation-pipeline; then
+          echo "::set-output name=stack_exists::true"
+        else
+          echo "::set-output name=stack_exists::false"
+        fi
+
+    - name: Create or Update Stack
+      run: |
+        if [ "${{ steps.check_stack.outputs.stack_exists }}" == "true" ]; then
+          aws cloudformation create-change-set --stack-name cloud-formation-pipeline \
+            --change-set-name my-changeset \
+            --template-body file://cloudformation/cloud_formation_pipeline.yaml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameters ParameterKey=BucketNameapi,ParameterValue=${{ secrets.BucketNameapi }} \
+              ParameterKey=layerbucketname,ParameterValue=${{ secrets.layerbucketname }} \
+              ParameterKey=requestslayername,ParameterValue=${{ secrets.requestslayername }} \
+              ParameterKey=pytzlayername,ParameterValue=${{ secrets.pytzlayername }} \
+              ParameterKey=repositoryname,ParameterValue=${{ secrets.repositoryname }} \
+              ParameterKey=clustername,ParameterValue=${{ secrets.clustername }} \
+              ParameterKey=runtimename,ParameterValue=${{ secrets.runtimename }} \
+              ParameterKey=Timeout,ParameterValue=${{ secrets.Timeout }} \
+              ParameterKey=MemorySize,ParameterValue=${{ secrets.MemorySize }} \
+              ParameterKey=TaskCpu,ParameterValue=${{ secrets.TaskCpu }} \
+              ParameterKey=TaskMemory,ParameterValue=${{ secrets.TaskMemory }} \
+              ParameterKey=startingdate,ParameterValue=${{ secrets.startingdate }} \
+              ParameterKey=EndDate,ParameterValue=${{ secrets.EndDate }} \
+              ParameterKey=Schedule,ParameterValue=${{ secrets.Schedule }} \
+              ParameterKey=restapiname,ParameterValue=${{ secrets.restapiname }} \
+              ParameterKey=snowflakeiamarn,ParameterValue=${{ secrets.snowflakeiamarn }} \
+              ParameterKey=snowflakeexternalid,ParameterValue=${{ secrets.snowflakeexternalid }}
+          aws cloudformation execute-change-set --stack-name cloud-formation-pipeline --change-set-name my-changeset
+        else
+          aws cloudformation create-stack --stack-name cloud-formation-pipeline \
+            --template-body file://cloudformation/cloud_formation_pipeline.yaml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameters ParameterKey=BucketNameapi,ParameterValue=${{ secrets.BucketNameapi }} \
+              ParameterKey=layerbucketname,ParameterValue=${{ secrets.layerbucketname }} \
+              ParameterKey=requestslayername,ParameterValue=${{ secrets.requestslayername }} \
+              ParameterKey=pytzlayername,ParameterValue=${{ secrets.pytzlayername }} \
+              ParameterKey=repositoryname,ParameterValue=${{ secrets.repositoryname }} \
+              ParameterKey=clustername,ParameterValue=${{ secrets.clustername }} \
+              ParameterKey=runtimename,ParameterValue=${{ secrets.runtimename }} \
+              ParameterKey=Timeout,ParameterValue=${{ secrets.Timeout }} \
+              ParameterKey=MemorySize,ParameterValue=${{ secrets.MemorySize }} \
+              ParameterKey=TaskCpu,ParameterValue=${{ secrets.TaskCpu }} \
+              ParameterKey=TaskMemory,ParameterValue=${{ secrets.TaskMemory }} \
+              ParameterKey=startingdate,ParameterValue=${{ secrets.startingdate }} \
+              ParameterKey=EndDate,ParameterValue=${{ secrets.EndDate }} \
+              ParameterKey=Schedule,ParameterValue=${{ secrets.Schedule }} \
+              ParameterKey=restapiname,ParameterValue=${{ secrets.restapiname }} \
+              ParameterKey=snowflakeiamarn,ParameterValue=${{ secrets.snowflakeiamarn }} \
+              ParameterKey=snowflakeexternalid,ParameterValue=${{ secrets.snowflakeexternalid }}
+        fi

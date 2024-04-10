@@ -70,3 +70,5 @@ Ensure that AWS credentials are properly configured in the GitHub repository sec
 Modify the cloud_formation_pipeline.yaml file as needed to define or update your CloudFormation stack.
 Commit and push changes to trigger the deployment workflow.
 Monitor the workflow execution in the GitHub Actions tab to ensure successful deployment.
+## Here is my Architecture Overview 
+![architecture](https://github.com/thequeryvoyager/AWS-CloudFormation-Examples/assets/161686601/2aad5cf0-d7f7-44eb-9cd9-2fcce255e8c8)
